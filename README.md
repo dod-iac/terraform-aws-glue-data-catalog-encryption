@@ -1,42 +1,53 @@
 <!-- BEGINNING OF PRE-COMMIT-TERRAFORM DOCS HOOK -->
-# Terraform Module template
-
-This repository is meant to be a template for creating new terraform modules.
-
-## Creating a new Terraform Module
-
-1. Clone this repo, renaming appropriately.  
-1. Write your terraform code in the root dir.  
-1. Ensure you've completed the [Developer Setup](#developer-setup).  
-1. In the root dir, run `go mod init MODULE_NAME` to get a new `go.mod` file. Then run `go mod tidy`. This creates a new `go.sum` file and imports the dependencies and checksums specific to your repository.  
-1. Run your tests to ensure they work as expected using instructions below.
-
----
-
-<!-- DELETE ABOVE THIS LINE -->
+# Glue Catalog Encryption
 
 ## Description
 
-Please put a description of what this module does here
+Add account-wide encryption to the Glue Catalog
 
 ## Usage
 
-Add Usage information here
-
 Resources:
 
-* [Article Example](https://article.example.com)
+* [Encrypt Glue Data Catalog](https://docs.aws.amazon.com/glue/latest/dg/encrypt-glue-data-catalog.html)
+* [Encrypting Connection Passwords](https://docs.aws.amazon.com/glue/latest/dg/encrypt-connection-passwords.html)
 
 ```hcl
-module "example" {
-  source = "dod-iac/example/aws"
+module "glue_kms_key" {
+  source = "dod-iac/glue-kms-key/aws"
+
+  name = format("alias/app-%s-glue-%s", var.application, var.environment)
 
   tags = {
-    Project     = var.project
     Application = var.application
     Environment = var.environment
     Automation  = "Terraform"
   }
+}
+
+module "glue_catalog_encryption" {
+  source = "dod-iac/glue-catalog-encryption/aws"
+
+  aws_kms_key_arn = module.glue_kms_key.aws_kms_key_arn
+}
+```
+
+Now when you define a crawler or a job, The IAM role that you provide in the definition must have these AWS KMS permissions:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "kms:Decrypt",
+                "kms:Encrypt",
+                "kms:GenerateDataKey"
+            ],
+            "Resource": "ARN-of-key-used-to-encrypt-data-catalog"
+        }
+    ]
 }
 ```
 
@@ -63,34 +74,34 @@ pre-commit install --install-hooks
 
 | Name | Version |
 |------|---------|
-| terraform | >= 0.13 |
-| aws | ~> 3.0 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 0.13 |
+| <a name="requirement_aws"></a> [aws](#requirement\_aws) | ~> 3.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
-| aws | ~> 3.0 |
+| <a name="provider_aws"></a> [aws](#provider\_aws) | ~> 3.0 |
 
 ## Modules
 
-No Modules.
+No modules.
 
 ## Resources
 
-| Name |
-|------|
-| [aws_caller_identity](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/caller_identity) |
-| [aws_partition](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/partition) |
-| [aws_region](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/region) |
+| Name | Type |
+|------|------|
+| [aws_glue_data_catalog_encryption_settings.main](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/glue_data_catalog_encryption_settings) | resource |
 
 ## Inputs
 
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
-| tags | Tags applied to the AWS resources. | `map(string)` | `{}` | no |
+| <a name="input_aws_kms_key_arn"></a> [aws\_kms\_key\_arn](#input\_aws\_kms\_key\_arn) | The Amazon Resource Name (ARN) of the key | `string` | n/a | yes |
 
 ## Outputs
 
-No output.
+| Name | Description |
+|------|-------------|
+| <a name="output_glue_catalog_id"></a> [glue\_catalog\_id](#output\_glue\_catalog\_id) | The AWS Glue Catalog ID. |
 <!-- END OF PRE-COMMIT-TERRAFORM DOCS HOOK -->

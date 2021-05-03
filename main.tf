@@ -1,42 +1,53 @@
 /**
- * # Terraform Module template
- *
- * This repository is meant to be a template for creating new terraform modules.
- *
- * ## Creating a new Terraform Module
- *
- * 1. Clone this repo, renaming appropriately.
- * 1. Write your terraform code in the root dir.
- * 1. Ensure you've completed the [Developer Setup](#developer-setup).
- * 1. In the root dir, run `go mod init MODULE_NAME` to get a new `go.mod` file. Then run `go mod tidy`. This creates a new `go.sum` file and imports the dependencies and checksums specific to your repository.
- * 1. Run your tests to ensure they work as expected using instructions below.
- *
- * ---
- *
- * <!-- DELETE ABOVE THIS LINE -->
+ * # Glue Catalog Encryption
  *
  * ## Description
  *
- * Please put a description of what this module does here
+ * Add account-wide encryption to the Glue Catalog
  *
  * ## Usage
  *
- * Add Usage information here
- *
  * Resources:
  *
- * * [Article Example](https://article.example.com)
+ * * [Encrypt Glue Data Catalog](https://docs.aws.amazon.com/glue/latest/dg/encrypt-glue-data-catalog.html)
+ * * [Encrypting Connection Passwords](https://docs.aws.amazon.com/glue/latest/dg/encrypt-connection-passwords.html)
  *
  * ```hcl
- * module "example" {
- *   source = "dod-iac/example/aws"
+ * module "glue_kms_key" {
+ *   source = "dod-iac/glue-kms-key/aws"
+ *
+ *   name = format("alias/app-%s-glue-%s", var.application, var.environment)
  *
  *   tags = {
- *     Project     = var.project
  *     Application = var.application
  *     Environment = var.environment
  *     Automation  = "Terraform"
  *   }
+ * }
+ *
+ * module "glue_catalog_encryption" {
+ *   source = "dod-iac/glue-catalog-encryption/aws"
+ *
+ *   aws_kms_key_arn = module.glue_kms_key.aws_kms_key_arn
+ * }
+ * ```
+ *
+ * Now when you define a crawler or a job, The IAM role that you provide in the definition must have these AWS KMS permissions:
+ *
+ * ```json
+ * {
+ *     "Version": "2012-10-17",
+ *     "Statement": [
+ *         {
+ *             "Effect": "Allow",
+ *             "Action": [
+ *                 "kms:Decrypt",
+ *                 "kms:Encrypt",
+ *                 "kms:GenerateDataKey"
+ *             ],
+ *             "Resource": "ARN-of-key-used-to-encrypt-data-catalog"
+ *         }
+ *     ]
  * }
  * ```
  *
@@ -61,7 +72,16 @@
  *
  */
 
-data "aws_caller_identity" "current" {}
-# data "aws_iam_account_alias" "current" {}
-data "aws_partition" "current" {}
-data "aws_region" "current" {}
+resource "aws_glue_data_catalog_encryption_settings" "main" {
+  data_catalog_encryption_settings {
+    connection_password_encryption {
+      aws_kms_key_id                       = var.aws_kms_key_arn
+      return_connection_password_encrypted = true
+    }
+
+    encryption_at_rest {
+      catalog_encryption_mode = "SSE-KMS"
+      sse_aws_kms_key_id      = var.aws_kms_key_arn
+    }
+  }
+}
