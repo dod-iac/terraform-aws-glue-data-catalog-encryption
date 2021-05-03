@@ -10,14 +10,14 @@
  * Resources:
  *
  * * [Encrypt Glue Data Catalog](https://docs.aws.amazon.com/glue/latest/dg/encrypt-glue-data-catalog.html)
+ * * [Encrypting Connection Passwords](https://docs.aws.amazon.com/glue/latest/dg/encrypt-connection-passwords.html)
  *
  * ```hcl
- *
  * module "glue_kms_key" {
  *   source = "dod-iac/glue-kms-key/aws"
  *
  *   name = format("alias/app-%s-glue-%s", var.application, var.environment)
-
+ *
  *   tags = {
  *     Application = var.application
  *     Environment = var.environment
@@ -29,12 +29,25 @@
  *   source = "dod-iac/glue-catalog-encryption/aws"
  *
  *   aws_kms_key_arn = module.glue_kms_key.aws_kms_key_arn
+ * }
+ * ```
  *
- *   tags = {
- *     Application = var.application
- *     Environment = var.environment
- *     Automation  = "Terraform"
- *   }
+ * Now when you define a crawler or a job, The IAM role that you provide in the definition must have these AWS KMS permissions:
+ *
+ * ```json
+ * {
+ *     "Version": "2012-10-17",
+ *     "Statement": [
+ *         {
+ *             "Effect": "Allow",
+ *             "Action": [
+ *                 "kms:Decrypt",
+ *                 "kms:Encrypt",
+ *                 "kms:GenerateDataKey"
+ *             ],
+ *             "Resource": "ARN-of-key-used-to-encrypt-data-catalog"
+ *         }
+ *     ]
  * }
  * ```
  *
