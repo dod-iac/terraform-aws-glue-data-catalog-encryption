@@ -25,8 +25,8 @@ module "glue_kms_key" {
   }
 }
 
-module "glue_catalog_encryption" {
-  source = "dod-iac/glue-catalog-encryption/aws"
+module "glue_data_catalog_encryption" {
+  source = "dod-iac/glue-data_catalog-encryption/aws"
 
   aws_kms_key_arn = module.glue_kms_key.aws_kms_key_arn
 }
